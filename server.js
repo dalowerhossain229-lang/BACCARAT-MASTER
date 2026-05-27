@@ -25,7 +25,7 @@ app.use((req, res, next) => {
 });
 
 // 🎰 [উইনগো কালার ট্রেড ওরিজিনাল ডোমেইন সিঙ্ক]
-const MAIN_SITE_URL = "https://onrender.com"; 
+const MAIN_SITE_URL = "https://betlover247.onrender.com"; 
 
 // 🃏 ওরিজিনাল ব্যাকারাত মেমোরি ডেক (10, J, Q, K এর পয়েন্ট ০ এবং Ace এর পয়েন্ট ১ ভাই ভাই)
 const cardDeck = [
