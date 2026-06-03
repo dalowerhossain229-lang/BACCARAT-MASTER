@@ -151,11 +151,13 @@ app.post('/api/baccarat-deal', async (req, res) => {
             dbAmount = 0; 
         }
 
+                // 🎯 [মেগা কিলার টাইমআউট ব্লকার ও ডাইনামিক ওয়ালেট বাউন্সার বর্ম ভাই ভাই]
+        // রুট ইউআরএল থেকে আসা ওরিজিনাল ওয়ালেট টাইপোকে ১০০% নিখুঁতভাবে মেইন সাইটের সাথে ম্যাচ করানোর মেথড
         let phpPayload = { 
             action: dbAction, 
             username: userId, 
             amount: dbAmount, 
-            wallet: wallet || "main", 
+            wallet: typeof wallet !== 'undefined' ? wallet : (targetWallet || "main"), 
             game: finalGameName 
         };
         
@@ -168,8 +170,8 @@ app.post('/api/baccarat-deal', async (req, res) => {
         // ডাটাবেজ হিস্টোরি ও লগে স্টেক ডাটা ফিক্সড রাখার প্যারামিটার ইনজেকশন
         phpPayload.bet_amount = reqAmount;
 
-        // 🛫 ৩. মেইন সাইটের সিকিউরড গেটওয়েতে রিয়েল-টাইম উইন-লস সেটেলমেন্ট এপিআই হিট (১০০% ডাবল-ডেবিট প্রুফ)
-        const response = await axios.post(`${MAIN_SITE_URL}/api_callback.php`, phpPayload, { timeout: 30000 });
+        // 🛫 ৩. মেইন সাইটের সিকিউরড গেটওয়েতে রিয়েল-টাইম উইন-লস সেটেলমেন্ট এপিআই হিট (১০০% টাইমআউট প্রুফ)
+        const response = await axios.post(`${MAIN_SITE_URL}/api_callback.php`, phpPayload, { timeout: 45000 });
 
         if (response.data && response.data.status === "ok") {
             io.emit("balanceUpdate", { username: userId, balance: response.data.balance });
