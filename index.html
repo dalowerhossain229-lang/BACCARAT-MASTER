@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BACCARAT MASTER - PREMIUM LUXURY ARENA</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 🎰 ক্যাসিনো হেডার ব্লকার (ডাবল ব্যালেন্স বক্স জ্যাম এড়াতে style.css দিয়ে হাইড লক করা ভাই ভাই) -->
+    <div class="header">
+        <div class="brand">
+            <div class="class-name">BACCARAT MASTER</div>
+            <div class="class-game">PREMIUM LUXURY ARENA</div>
+        </div>
+        <div class="header-right">
+            <button class="sound-btn" id="mute-btn" onclick="toggleMute()"></button>
+            <div class="balance-box">৳ <span id="user-balance">0.00</span></div>
+        </div>
+    </div>
+
+    <!-- 🃏 ব্যাকারাত মেইন লাইভ CARD শোডাউন টেবিল বোর্ড -->
+    <div class="board-dealing-zone">
+        <!-- প্লেয়ার (PLAYER) BOX ஜোন -->
+        <div class="board-column player-bg-glow">
+            <div class="column-header-title header-player">PLAYER (প্লেয়ার) <span id="player-score" class="score-badge">0</span></div>
+            <div class="cards-display-grid" id="player-cards-container"></div>
+        </div>
+
+        <!-- ব্যাঙ্কার (BANKER) BOX ஜোন -->
+        <div class="board-column banker-bg-glow">
+            <div class="column-header-title header-banker">BANKER (ব্যাঙ্কার) <span id="banker-score" class="score-badge">0</span></div>
+            <div class="cards-display-grid" id="banker-cards-container"></div>
+        </div>
+    </div>
+
+    <!-- 💸 বাজি ধরার প্রধান ৩টি নিয়ন ব্যাকারাত মডিউল (PLAYER, TIE, BANKER ওডস লক ভাই) -->
+    <div class="betting-board">
+        <button class="bet-board-btn player-select-btn" id="board-PLAYER" onclick="selectBetSide('PLAYER')">
+            <span class="board-label">PLAYER</span>
+            <span class="board-odds">x2.0</span>
+        </button>
+
+        <button class="bet-board-btn tie-select-btn" id="board-TIE" onclick="selectBetSide('TIE')">
+            <span class="board-label">TIE</span>
+            <span class="board-odds">x9.0</span>
+        </button>
+
+        <button class="bet-board-btn banker-select-btn" id="board-BANKER" onclick="selectBetSide('BANKER')">
+            <span class="board-label">BANKER</span>
+            <span class="board-odds">x1.95</span>
+        </button>
+    </div>
+
+    <!-- 📢 উইন-লস লাইভ ক্যাসিনো মেসেজ প্যানেল বার -->
+    <div class="win-status-container" id="win-status-box">
+        <span id="win-text-msg">PLAYER, BANKER বা TIE সিলেক্ট করে DEAL বোতাম চাপুন ওস্তাদ!</span>
+    </div>
+
+    <!-- 🎛️ নিচের মেইন কন্ট্রোল প্যানেল ফুটার -->
+    <div class="footer-controls">
+        <div class="play-section">
+            <button class="bet-btn-nav" onclick="adjustBet('minus')">-</button>
+            <div style="text-align: center; width: 60px;">
+                <div style="font-size: 9px; color: #aaa; font-weight: bold;">BET</div>
+                <div style="font-size: 15px; font-weight: 900; color: #fff;" id="bet-display">৳50</div>
+            </div>
+            <button class="bet-btn-nav" onclick="adjustBet('plus')">+</button>
+
+            <button class="play-btn" id="spin-btn" onclick="handleBaccaratDeal()">DEAL</button>
+            
+            <div class="icon-group">
+                <button class="icon-btn" id="auto-btn" onclick="toggleAuto()"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔌 [উইঙ্গো কালার ট্রেড সিঙ্ক - canইন্টারন্যাশনাল সকেট ইঞ্জিন লাইব্রেরি গেটওয়ে] -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlUserId = urlParams.get('userId') || urlParams.get('id') || urlParams.get('username') || "guest_user";
+        const urlWallet = urlParams.get('wallet') || "main";
+
+        const SERVER_URL = window.location.origin;
+
+        let balance = 0.00;
+        let currentBet = 50;
+        let selectedSide = null;
+        let isSpinning = false;
+        let isAuto = false;
+        let isMuted = false;
+        let autoInterval = null;
+
+        function adjustBet(action) {
+            if (isSpinning) return;
+            if (action === 'minus' && currentBet > 50) currentBet -= 50;
+            if (action === 'plus' && currentBet < 20000) currentBet += 50;
+            document.getElementById("bet-display").innerText = `৳${currentBet}`;
+            playAudio('click');
+        }
+
+        function selectBetSide(side) {
+            if (isSpinning) return;
+            selectedSide = side;
+            document.getElementById("board-PLAYER").classList.remove("active-side-bet");
+            document.getElementById("board-TIE").classList.remove("active-side-bet");
+            document.getElementById("board-BANKER").classList.remove("active-side-bet");
+            document.getElementById(`board-${side}`).classList.add("active-side-bet");
+            playAudio('click');
+        }
+
+        // 🎰 [🎰 ۵৪ গেমের সুপ্রিম ওরিজিনাল রুট ইমেজ সিঙ্ক জাভাস্ক্রিপ্ট ইঞ্জিন ভাই ভাই]
+        function animateCardDealing(serverData) {
+            const pZone = document.getElementById("player-cards-container");
+            const bZone = document.getElementById("banker-cards-container");
+
+            const pList = serverData.playerCards || [];
+            const bList = serverData.bankerCards || [];
+
+            pZone.innerHTML = "";
+            bZone.innerHTML = "";
+            document.getElementById("player-score").innerText = "0";
+            document.getElementById("banker-score").innerText = "0";
+
+            let maxCardsCount = Math.max(pList.length, bList.length);
+            let currentCardIdx = 0;
+
+            const cardDealingInterval = setInterval(() => {
+                if (currentCardIdx >= maxCardsCount) {
+                    clearInterval(cardDealingInterval);
+                    document.getElementById("player-score").innerText = serverData.playerScore;
+                    document.getElementById("banker-score").innerText = serverData.bankerScore;
+                    showFinalGameReward(serverData.status, serverData.winAmount, serverData.result);
+                    return;
+                }
+
+                // 🔵 প্লেয়ারের CARD সরাসরি গিটহাব রুট ডিরেক্টরি থেকে লোড চেইন
+                if (currentCardIdx < pList.length) {
+                    const c = pList[currentCardIdx];
+                    const cardDiv = document.createElement("div");
+                    cardDiv.className = "card-deal-animation-node";
+                    cardDiv.style.width = "55px"; cardDiv.style.height = "80px"; cardDiv.style.flexShrink = "0";
+                    cardDiv.innerHTML = `<img src="${c.value}_of_${c.suit.toUpperCase()}.png" style="width:100%;height:100%;object-fit:cover;display:block;" alt="Player Card">`;
+                    pZone.appendChild(cardDiv);
+                    playAudio('spin');
+                }
+
+                // 🔴 ব্যাঙ্কারের CARD সরাসরি গিটহাব রুট ডিরেক্টরি থেকে লোড চেইন
+                if (currentCardIdx < bList.length) {
+                    const c = bList[currentCardIdx];
+                    const cardDiv = document.createElement("div");
+                    cardDiv.className = "card-deal-animation-node";
+                    cardDiv.style.width = "55px"; cardDiv.style.height = "80px"; cardDiv.style.flexShrink = "0";
+                    cardDiv.innerHTML = `<img src="${c.value}_of_${c.suit.toUpperCase()}.png" style="width:100%;height:100%;object-fit:cover;display:block;" alt="Banker Card">`;
+                    bZone.appendChild(cardDiv);
+                    playAudio('spin');
+                }
+
+                currentCardIdx++;
+            }, 300);
+        }
+
+        async function handleBaccaratDeal() {
+            if (isSpinning || isSpinning === true) return; // ডাবল-ক্লিক ব্লকিং গেটওয়ে বর্ম লক
+            if (!selectedSide) {
+                alert("🔒 বাজি প্লে করার আগে PLAYER, BANKER বা TIE সিলেক্ট করুন ওস্তাদ!");
+                return;
+            }
+
+            isSpinning = true;
+            document.getElementById("spin-btn").disabled = true;
+            document.getElementById("win-status-box").className = "win-status-container";
+            document.getElementById("win-text-msg").innerText = "🎰 ব্যাকারাত মাস্টার কার্ড ডিলিং করছে...";
+            playAudio('click');
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/baccarat-deal`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: urlUserId,
+                        amount: parseFloat(currentBet),
+                        wallet: urlWallet,
+                        prediction: selectedSide,
+                        game: "baccaratmaster" // লবির সাথে ১০০% একুরেট শর্টকোড সিঙ্ক ভাই
+                    })
+                });
+
+                                const serverRes = await response.json();
+                
+                // 🎯 [অন্দর বাহার স্টাইল মেগা ডাটা ইন্টারসেপ্টর বর্ম ওস্তাদ]: 
+                // নতুন res.json({ success: true, data: { balance: ... }, gameData: { ... } }) ফরম্যাটটি ওয়ান-শটে ক্র্যাক লুপ রিড করার চাবি ভাই ভাই
+                if (serverRes.success || serverRes.success === true) {
+                    // অন্দর বাহারের মতো ডাটাবেজের ডাইরেক্ট বডি অবজেক্ট থেকে মেইন ওয়ালেট লাইভ ক্যাচিং চেইনার
+                    let parsedLiveBalance = serverRes.balance || serverRes.data?.balance || balance;
+                    balance = parseFloat(parsedLiveBalance);
+                    if (document.getElementById("user-balance")) {
+                        document.getElementById("user-balance").innerText = balance.toFixed(2);
+                    }
+                    
+                    if (window.parent) window.parent.postMessage({ action: "refresh_wallet" }, "*");
+                    if (window.top) window.top.postMessage({ action: "refresh_wallet" }, "*");
+                    
+                    // সার্ভার থেকে আসা কোর গেম-ডাটা সরাসরি অ্যানিমেশন정에 পুশ ওস্তাদ
+                    let targetGamePayload = serverRes.gameData || serverRes;
+                    animateCardDealing(targetGamePayload);
+                } else {
+                    alert(serverRes.message || "❌ Insufficient Balance! Please Recharge Wallet.");
+                    stopBaccaratState();
+                }
+            } catch (err) {
+                console.log("Baccarat-Master Data Sync Engine Active Streams.");
+                stopBaccaratState();
+            }
+        }
+
+        function showFinalGameReward(status, winAmount, winnerSide) {
+            const msgBox = document.getElementById("win-status-box");
+            const textMsg = document.getElementById("win-text-msg");
+            
+            if (status === "win") {
+                playAudio('win');
+                if (msgBox) msgBox.className = "win-status-container win-glow-bar";
+                if (textMsg) textMsg.innerHTML = `🎉 গ্র্যান্ড উইন ওস্তাদ! <b>${winnerSide}</b> জিতেছে এবং আপনার ওয়ালেটে ৳${winAmount} ক্রেডিট হয়েছে ভাই ভাই!`;
+            } else {
+                playAudio('wheel');
+                if (msgBox) msgBox.className = "win-status-container lose-glow-bar";
+                if (textMsg) textMsg.innerHTML = `💥 ওহ হো! <b>${winnerSide}</b> জিতেছে। এই রাউন্ডে বাজি লস হয়েছে ভাই ভাই!`;
+            }
+
+            fetchLiveBalance();
+            stopBaccaratState();
+
+            if (isAuto) {
+                autoInterval = setTimeout(() => {
+                    if (isAuto) handleBaccaratDeal();
+                }, 3000);
+            }
+        }
+
+        if (typeof io !== 'undefined') {
+            const socket = io();
+            socket.on("balanceUpdate", (data) => {
+                if (data && data.username === urlUserId) {
+                    if (window.parent) window.parent.postMessage({ action: "refresh_wallet" }, "*");
+                    fetchLiveBalance();
+                }
+            });
+        }
+
+        async function fetchLiveBalance() {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/baccarat-balance?userId=${urlUserId}&wallet=${urlWallet}`);
+                const serverData = await response.json();
+                if (serverData.success) {
+                    balance = parseFloat(serverData.balance);
+                    if (document.getElementById("user-balance")) {
+                        document.getElementById("user-balance").innerText = balance.toFixed(2);
+                    }
+                }
+            } catch (e) { console.error("Balance lag check"); }
+        }
+
+        window.onload = () => {
+            if (window.parent) window.parent.postMessage({ action: "refresh_wallet" }, "*");
+            fetchLiveBalance();
+        };
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            document.getElementById("mute-btn").innerText = isMuted ? "🔇" : "🔊";
+            slotSounds.click.muted = isMuted;
+            slotSounds.spin.muted = isMuted;
+            slotSounds.win.muted = isMuted;
+            slotSounds.wheel.muted = isMuted;
+        }
+
+        function toggleAuto() {
+            isAuto = !isAuto;
+            document.getElementById("auto-btn").classList.toggle('active', isAuto);
+            if (isAuto && !isSpinning) handleBaccaratDeal();
+            playAudio('click');
+        }
+
+        function stopBaccaratState() {
+            isSpinning = false;
+            if (document.getElementById("spin-btn")) {
+                document.getElementById("spin-btn").disabled = false;
+            }
+            if (!isAuto && autoInterval) clearTimeout(autoInterval);
+        }
+
+        const slotSounds = {
+            click: new Audio('click2.mp3'),
+            spin: new Audio('spin2.mp3'),
+            win: new Audio('win2.mp3'),
+            wheel: new Audio('wheel1.mp3')
+        };
+        Object.values(slotSounds).forEach(s => s.load());
+
+        function playAudio(type) {
+            if (isMuted) return;
+            try {
+                slotSounds[type].currentTime = 0;
+                slotSounds[type].play();
+            } catch(e) {}
+        }
+    </script>
+</body>
+</html>
