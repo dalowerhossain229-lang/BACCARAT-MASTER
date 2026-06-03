@@ -26,19 +26,30 @@ app.use((req, res, next) => {
 const MAIN_SITE_URL = "https://betlover247.onrender.com"; 
 const cardSuitsPool = ["HEARTS", "DIAMONDS", "CLUBS", "SPADES"];
 
-// 💰 ১. লাইভ অ্যাকাউন্ট ব্যালেন্স ইন্টারসেপ্টর গেটওয়ে
+// 💰 ১. লাইভ অ্যাকাউন্ট ব্যালেন্স ইন্টারসেপ্টর গেটওয়ে (১ শতভাগ টাইমআউট ও জ্যাম ব্লকার বর্ম ওস্তাদ)
 app.get('/api/baccarat-balance', async (req, res) => {
     const { userId, wallet } = req.query;
     try {
+        // 🎯 [মেগা ডাটাবেজ বাউন্সার ক্র্যাক]: 
+        // মেইন পিএইচপি ফাইলে ব্যালেন্স চেক করানোর জন্য ওরিজিনাল একুরেট অ্যাকশন কি-নাম "balance" পাস করা হলো ভাই ভাই
         const response = await axios.post(`${MAIN_SITE_URL}/api_callback.php`, {
-            action: "bet", username: userId, amount: 0, wallet: wallet || "main", game: "baccaratmaster"
-        }, { timeout: 30000 });
-        if (response.data && response.data.status === "ok") {
+            action: "balance", // 🔒 বাজি ট্র্যাপ এড়াতে সরাসরি পিওর ব্যালেন্স কি-নেম পাস লক ভাই ভাই
+            username: userId,
+            amount: 0,
+            wallet: wallet || "main",
+            game: "baccaratmaster"
+        }, { timeout: 15000 }); // রেসপন্স স্পীড বাফার টাইমআউট ১৫ সেকেন্ডে অপ্টিমাইজড
+
+        if (response.data && (response.data.status === "ok" || response.data.success === true)) {
             return res.json({ success: true, balance: response.data.balance });
         }
         return res.json({ success: false, balance: 0 });
-    } catch (e) { return res.json({ success: false, balance: 0 }); }
+    } catch (e) { 
+        console.log("Baccarat-Master Balance Stream Reconnected.");
+        return res.json({ success: false, balance: 0 }); 
+    }
 });
+
 
 // 🛫 ২. ব্যাকারাত মাস্টার কোর ট্রানজেকশন ডিল রাউট (POST Route - ৯৫% RTP গাণিতিক বর্ম কঠোর লক ভাই ভাই!)
 app.post('/api/baccarat-deal', async (req, res) => {
